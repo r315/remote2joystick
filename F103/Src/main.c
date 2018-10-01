@@ -52,7 +52,7 @@
 #include "usb_device.h"
 
 /* USER CODE BEGIN Includes */
-
+#include "usbd_hid.h"
 #include "remote.h"
 
 /* USER CODE END Includes */
@@ -129,7 +129,7 @@ int main(void)
   /* USER CODE BEGIN 3 */
  // Send HID report
     REMORE_Read(&hitec);
-    USBD_HID_SendReport(&hUsbDeviceFS, &hitec, sizeof(Remote_Type));
+    USBD_HID_SendReport(&hUsbDeviceFS, (uint8_t*)&hitec, sizeof(Remote_Type));
     HAL_Delay(20);
   }
   /* USER CODE END 3 */
