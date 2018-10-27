@@ -153,6 +153,17 @@ SECTIONS
     . = ALIGN(8);
   } >RAM
 
+  _siram_code = LOADADDR(.ram_code);
+  .ram_code : 
+  {
+    . = ALIGN(4);
+    _sram_code = .;    /* create a global symbol at data start */
+    *(.ram_code)
+    *(.ram_code*)
+
+    . = ALIGN(4);
+    _eram_code = .;    /* define a global symbol at data end */
+  } >RAM AT> FLASH
   
 
   /* Remove information from the standard libraries */

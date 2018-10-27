@@ -2,6 +2,20 @@
 #include "remote.h"
 #include "math.h"
 
+/**
+ * PA0 <- CH1
+ * PA1 <- CH2
+ * PA2 <- CH3
+ * PA3 <- CH4
+ * */
+
+#define RAM_CODE __attribute__((section(".ram_code")))
+#define TIM2_CAP_POL(ch) (2 << (ch - 1) * 4)
+#define PWM_MAX_PULSE 2000
+#define PWM_MIN_PULSE 1000
+
+#define LOGICAL_MINIMUM -127
+#define LOGICAL_MAXIMUM  127
 
 int32_t radius = 120;
 int32_t angle = 0;
@@ -29,27 +43,6 @@ int32_t map(int32_t x, int32_t in_min, int32_t in_max, int32_t out_min, int32_t 
   return ((x - in_min) * (out_max - out_min) / (in_max - in_min)) + out_min;
 }
 
-void readFilter(int8_t *dst, uint16_t newvalue){
-
-    if(newvalue > 1000 && newvalue < 1900)
-    {
-        *dst = map(newvalue, 1000, 1900, 0, 127);
-    }
-}
-
-void REMORE_Read(Remote_Type *rem){
-    #if defined(DEMO)
-    remote_demo(rem);
-    #else
-    if(ready == 0) return;
-    
-    readFilter(&hitec.throttle, chs[2]);
-    readFilter(&hitec.yaw, chs[3]);
-    readFilter(&hitec.pitch, chs[0]);
-    readFilter(&hitec.roll, chs[1]);
-    #endif
-}
-
 void REMOTE_Init(void){
 
     RCC->APB1ENR |= (1 << 0); // TIM2EN
@@ -66,9 +59,28 @@ void REMOTE_Init(void){
     TIM2->CR1 |= (1 << 0);  // CEN
 }
 
+RAM_CODE void readFilter(int8_t *dst, uint16_t newvalue){
 
-#define TIM2_CAP_POL(ch) (2 << (ch - 1) * 4)
-void HandleChannel(volatile uint16_t *dst, volatile uint16_t *ccr, uint8_t ch){
+    if(newvalue > PWM_MIN_PULSE && newvalue < PWM_MAX_PULSE)
+    {
+        *dst = map(newvalue, PWM_MIN_PULSE, PWM_MAX_PULSE, LOGICAL_MINIMUM, LOGICAL_MAXIMUM);
+    }
+}
+
+RAM_CODE void REMORE_Read(Remote_Type *rem){
+    #if defined(DEMO)
+    remote_demo(rem);
+    #else
+    if(ready == 0) return;
+    
+    readFilter(&hitec.throttle, chs[2]);
+    readFilter(&hitec.yaw, chs[3]);
+    readFilter(&hitec.pitch, chs[0]);
+    readFilter(&hitec.roll, chs[1]);
+    #endif
+}
+
+RAM_CODE void HandleChannel(volatile uint16_t *dst, volatile uint16_t *ccr, uint8_t ch){
 
     if(TIM2->SR & (1 << (8 + ch))){ // check over flow
             // if set ignore capture and set capture for rising edge 
@@ -89,7 +101,7 @@ void HandleChannel(volatile uint16_t *dst, volatile uint16_t *ccr, uint8_t ch){
     // TIM2->SR &= ~(1 << ch);
 }
 
-void TIM2_IRQHandler(void){
+RAM_CODE void TIM2_IRQHandler(void){
     if(TIM2->SR & (1 << 1)){
         HandleChannel(&chs[4], (uint16_t*)&TIM2->CCR1, 1);
     }
@@ -104,6 +116,5 @@ void TIM2_IRQHandler(void){
 
     if(TIM2->SR & (1 << 4)){
         HandleChannel(&chs[7], (uint16_t*)&TIM2->CCR4, 4);
-    }
-  
+    }  
 }
