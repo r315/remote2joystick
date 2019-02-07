@@ -47,16 +47,16 @@ void REMOTE_Init(void){
 
     RCC->APB1ENR |= (1 << 0); // TIM2EN
 
-    TIM2->CR1 = 0;
+    TIM2->CR1 = 0;              // Stop counter
 
-    TIM2->PSC = SystemCoreClock/1000000;
-    TIM2->CCMR1 = 0x0101; // CC1-2S = 01, map to TI1 
-    TIM2->CCMR2 = 0x0101; // CC3-4S = 01, map to TI1 
-    TIM2->CCER  = 0x1111;  // CC1E, CC1 input, rising edge
+    TIM2->PSC = SystemCoreClock/1000000;      // 1Mhz
+    TIM2->CCMR1 = 0x0101;       // CC1-2S = 01, ch1-2 mapped to TI1,TI2 
+    TIM2->CCMR2 = 0x0101;       // CC3-4S = 01, map to TI1 
+    TIM2->CCER  = 0x1111;       // CC1E, CC1; Configure all channels as input, Capture on rising edge
 
-    TIM2->DIER = (0x0f << 1); // CC1IE    
-    NVIC_EnableIRQ(TIM2_IRQn);
-    TIM2->CR1 |= (1 << 0);  // CEN
+    TIM2->DIER = (0x0f << 1);   // Enable interrupt on capture for all channels
+    NVIC_EnableIRQ(TIM2_IRQn);  // Enable timer 2 interupt
+    TIM2->CR1 |= (1 << 0);      // Start counter
 }
 
 RAM_CODE void readFilter(int8_t *dst, uint16_t newvalue){
@@ -80,27 +80,43 @@ RAM_CODE void REMORE_Read(Remote_Type *rem){
     #endif
 }
 
+/**
+ * Handles a radio channel with the cirrespondent captured value from interrupt.
+ * Hw capture flag is cleared when the correspondent regiter is read.
+ * This is a synchronous algorithm, since the ready flag is set only if all channels were 
+ * measured.  
+ * */
 RAM_CODE void HandleChannel(volatile uint16_t *dst, volatile uint16_t *ccr, uint8_t ch){
 
-    if(TIM2->SR & (1 << (8 + ch))){ // check over flow
-            // if set ignore capture and set capture for rising edge 
-            TIM2->CCER &= ~(TIM2_CAP_POL(ch));
-            TIM2->SR &= ~((1 << (8 + ch)) | (1 << ch));
-            return;
-        }
-        if(!(TIM2->CCER & TIM2_CAP_POL(ch))){ // if rising edge, capture
-            *dst =  *ccr;
-            TIM2->CCER |= TIM2_CAP_POL(ch);
-            if(ch == 1) ready = 0;
-        }else{            
-            *dst =  (*ccr > *dst) ? *ccr - *dst : (0xFFFF - *dst) + *ccr;
-            TIM2->CCER &= ~(TIM2_CAP_POL(ch));
-            *(dst-4) = *dst;
-            if(ch == 4) ready = 1;
+    // check if overflow occurred
+    if(TIM2->SR & (1 << (8 + ch))){ 
+        // if set ignore capture and set capture for rising edge 
+        TIM2->CCER &= ~(TIM2_CAP_POL(ch));
+        TIM2->SR &= ~((1 << (8 + ch)) | (1 << ch));
+        return;
     }
-    // TIM2->SR &= ~(1 << ch);
+
+    // If interrupt was from a rising edge, save capture value on the remote channel
+    // and change the polarity of the capturing edge for the give channel
+    if(!(TIM2->CCER & TIM2_CAP_POL(ch))){
+        *dst =  *ccr;
+        TIM2->CCER |= TIM2_CAP_POL(ch);
+        if(ch == 1) ready = 0;
+    }else{            
+        // If caused by falling edge, calculate the pulse width and save it on the 
+        // remote channel.
+        *dst =  (*ccr > *dst) ? *ccr - *dst : (0xFFFF - *dst) + *ccr;
+        TIM2->CCER &= ~(TIM2_CAP_POL(ch));
+        *(dst-4) = *dst;
+        if(ch == 4) ready = 1;
+    }    
 }
 
+/**
+ * Every capture of any channel will generate an interrupt on capture event (rising or falling edge), 
+ * then the handler will evaluate which channel caused the interrupt and call the channel handler
+ * with the correspondent radio channel buffer
+ * */
 RAM_CODE void TIM2_IRQHandler(void){
     if(TIM2->SR & (1 << 1)){
         HandleChannel(&chs[4], (uint16_t*)&TIM2->CCR1, 1);
