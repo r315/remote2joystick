@@ -89,7 +89,7 @@ int main(void)
 {
   /* USER CODE BEGIN 1 */
  // HID Mouse
-
+Remote_Type hitec;
   /* USER CODE END 1 */
 
   /* MCU Configuration----------------------------------------------------------*/

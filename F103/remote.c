@@ -30,12 +30,10 @@ volatile uint8_t edge_counter;
 volatile uint16_t remote_channels[MAX_REMOTE_CHANNELS];
 volatile uint8_t ready;
 
-Remote_Type hitec;
-
 #define PPM_INPUT
 #define PPM_CHANNELS 6
 
-#define TEST_PIN (1 << 5)
+#define TEST_PIN (1 << 5)  //PB5
 #define TEST_PIN_PORT GPIOB
 #define CFG_TEST_PIN TEST_PIN_PORT->CRL &= ~(0x0F << 20); TEST_PIN_PORT->CRL |= (2 << 20);
 #define TOGGLE_TEST_PIN TEST_PIN_PORT->ODR ^= TEST_PIN
@@ -71,12 +69,15 @@ RAM_CODE void REMORE_Read(Remote_Type *rem){
     #if defined(DEMO)
     remote_demo(rem);
     #else
-    if(ready == 0) return;
+    if(ready == 0) 
+        return;
     
-    readFilter(&hitec.throttle, remote_channels[2] + THROTTLE_OFFSET);
-    readFilter(&hitec.yaw, remote_channels[3]);
-    readFilter(&hitec.pitch, remote_channels[0]);
-    readFilter(&hitec.roll, remote_channels[1]);
+    readFilter(&rem->pitch, remote_channels[0]);
+    readFilter(&rem->roll, remote_channels[1]);
+    readFilter(&rem->throttle, remote_channels[2] + THROTTLE_OFFSET);
+    readFilter(&rem->yaw, remote_channels[3]);
+    readFilter(&rem->aux1, remote_channels[4]);
+    readFilter(&rem->aux2, remote_channels[5]); 
     #endif
 }
 
@@ -173,11 +174,11 @@ void REMOTE_Init(void){
 
     TIM4->DIER = (1 << 4);      // Enable interrupt for ch4
 
-    TIM4->CCR3 = 12000;         // 12ms is the maximum period after all ppm pulses
+    TIM4->CCR3 = 10000;         // 12ms is the maximum period after all ppm pulses
     
     NVIC_EnableIRQ(TIM4_IRQn);  // Enable timer 2 interupt
     edge_counter = 0; 
-    //CFG_TEST_PIN;
+    CFG_TEST_PIN;
     TIM4->CR1 |= (1 << 0);      // Start counter
 }
 
@@ -202,13 +203,16 @@ static uint16_t last_capture;
         return;
     }
 
+    // remote channel is offset by 2, since the first pulse is for starting counting
+    // and the increment happens before this point 
     dst[edge_counter - 2] = (ccr > last_capture) ? ccr - last_capture : (0xFFFF - last_capture) + ccr;
     last_capture = ccr;
     // was the last edge,reset all states
-    if(edge_counter == PPM_CHANNELS){
+    // ppm adds an extra pulse to last channel
+    if(edge_counter == PPM_CHANNELS + 1){
         edge_counter = 0;
         ready = 1;        
-        TIM4->CNT = 0;
+        TIM4->CNT = 0;        
     }    
 }
 

@@ -11,10 +11,9 @@ typedef struct remote{
   int8_t  roll;
   int8_t  throttle;
   int8_t  yaw;
-  int8_t  rsv[2];
+  int8_t  aux1;
+  int8_t  aux2;
 }Remote_Type;
-
-extern Remote_Type hitec;
 
 void REMORE_Read(Remote_Type *rem);
 void REMOTE_Init(void);
