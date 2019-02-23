@@ -15,9 +15,6 @@
 #define PWM_CENTER_PULSE 1500
 #define PWM_MIN_PULSE 1000
 
-#define LOGICAL_MINIMUM -127
-#define LOGICAL_MAXIMUM  127
-
 // in PWM mode half of the buffer is to store
 // the first captured value
 #define MAX_REMOTE_CHANNELS 8
@@ -55,7 +52,7 @@ int32_t map(int32_t x, int32_t in_min, int32_t in_max, int32_t out_min, int32_t 
   return ((x - in_min) * (out_max - out_min) / (in_max - in_min)) + out_min;
 }
 
-RAM_CODE void readFilter(int8_t *dst, uint16_t newvalue){
+RAM_CODE void readFilter(int16_t *dst, uint16_t newvalue){
 
     if(newvalue < PWM_MIN_PULSE || newvalue > PWM_MAX_PULSE)
     {
