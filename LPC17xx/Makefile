@@ -39,6 +39,7 @@ $(LIBEMB_PATH)/drv/tft \
 $(LIBEMB_PATH)/drv/spi \
 $(LIBEMB_PATH)/drv/pwm \
 $(LIBEMB_PATH)/drv/i2c \
+$(LIBEMB_PATH)/drv/clock \
 $(LIBEMB_PATH)/accelerometer \
 
 
@@ -95,7 +96,7 @@ OBJECTS += main.o stick.o
  SYS_OBJECTS += mbed/TARGET_LPC1768/TOOLCHAIN_GCC_ARM/system_LPC17xx.o
  SYS_OBJECTS += mbed/TARGET_LPC1768/TOOLCHAIN_GCC_ARM/us_ticker.o
 
- SYS_OBJECTS += display.o lcd.o ili9328.o spi_lpc17xx.o lis302.o
+ SYS_OBJECTS += clock_lpc17xx.o display.o font.o lcd.o ili9328.o spi_lpc17xx.o lis302.o
 
 INCLUDE_PATHS += -I../
 INCLUDE_PATHS += -I../.
@@ -281,15 +282,6 @@ all: $(PROJECT).bin $(PROJECT).hex size
 	+@echo "Assemble: $(notdir $<)"
   
 	@$(AS) -c $(ASM_FLAGS) -o $@ $<
-  
-
-
-.S.o:
-	+@$(call MAKEDIR,$(dir $@))
-	+@echo "Assemble: $(notdir $<)"
-  
-	@$(AS) -c $(ASM_FLAGS) -o $@ $<
-  
 
 .c.o:
 	+@$(call MAKEDIR,$(dir $@))
@@ -318,7 +310,13 @@ $(PROJECT).bin: $(PROJECT).elf
 
 $(PROJECT).hex: $(PROJECT).elf
 	$(ELF2BIN) -O ihex $< $@
+	
+$(PROJECT).cfg:
+	@echo "Creating opencod configuration file"
+	echo "interface jlink\ntransport select swd\nsource [find target/lpc17xx.cfg]\nadapter_khz 4000" > $(TARGET).cfg
 
+program: $(PROJECT).elf $(PROJECT).cfg
+	openocd -f $(PROJECT).cfg -c "program $(PROJECT).elf verify reset exit"
 
 # Rules
 ###############################################################################

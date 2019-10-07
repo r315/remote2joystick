@@ -158,7 +158,13 @@ LDFLAGS = $(MCU) -specs=nano.specs -T$(LDSCRIPT) $(LIBDIR) $(LIBS) -Wl,-Map=$(BU
 # default action: build all
 all: $(BUILD_DIR)/$(TARGET).elf $(BUILD_DIR)/$(TARGET).hex $(BUILD_DIR)/$(TARGET).bin
 
+$(TARGET).cfg:
+	@echo "Creating opencod configuration file"
+	echo "interface jlink\ntransport select swd\nsource [find target/stm32f1x.cfg]\nadapter_khz 4000" > $(TARGET).cfg
 
+program: $(BUILD_DIR)/$(TARGET).elf $(TARGET).cfg
+	openocd -f $(TARGET).cfg -c "program $(BUILD_DIR)/$(TARGET).elf verify reset exit"
+#openocd -f $(TARGET).cfg -c "program blackmagic-native.bin 0x08000000 verify reset exit"
 #######################################
 # build the application
 #######################################

@@ -25,9 +25,7 @@
 
 #include "mbed.h"
 #include "USBJoystick.h"
-
-#include <display.h>
-#include <accel.h>
+#include "board.h"
 #include "stick.h"
 
 #define JOY_HAT_PORT LPC_GPIO1
@@ -138,10 +136,10 @@ int main() {
 
   heartbeat_start();
 
-  DISPLAY_Init(ON);
+  DISPLAY_Init(1);
   LCD_Rotation(LCD_REVERSE_LANDSCAPE);
   LCD_Clear(BLACK);
-  LCD_Bkl(ON);
+  LCD_Bkl(1);
 
   spi.freq = 1000000;
   spi.cfg = SPI_MODE0 | SPI_8BIT;
